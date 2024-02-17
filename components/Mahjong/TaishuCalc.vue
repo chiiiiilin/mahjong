@@ -115,7 +115,7 @@ const canHu = (hand) => {
 		// 所有手牌處理完畢，且找到至少一對將牌，表示可以胡牌
 		if (remainingHand.length === 0) return pairFound;
 
-		// 嘗試找出將牌，只在還沒找到將牌時執行git
+		// 嘗試找出將牌，只在還沒找到將牌時執行
 		if (!pairFound) {
 			for (let i = 0; i < remainingHand.length - 1; i++) {
 				// 利用 every 檢查兩張牌是否可以組成將牌（數值和花色相同）
