@@ -2,18 +2,20 @@
 	<div class="check">
 		<div class="tiles">
 			<img
-				v-for="n in testHand.length === 18 ? 18 : 17"
+				v-for="n in playerHand.length === 18 ? 18 : 17"
 				:key="n"
 				:src="
-					testHand.length >= n
-						? `/images/${testHand[n - 1].suit}_${
-								testHand[n - 1].value
+					playerHand.length >= n
+						? `/images/${playerHand[n - 1].suit}_${
+								playerHand[n - 1].value
 						  }.png`
 						: '/images/麻將背面.png'
 				"
 				:alt="
-					testHand.length >= n
-						? `${testHand[n - 1].value} of ${testHand[n - 1].suit}`
+					playerHand.length >= n
+						? `${playerHand[n - 1].value} of ${
+								playerHand[n - 1].suit
+						  }`
 						: '背面'
 				"
 				class="tile"
@@ -33,10 +35,7 @@
 			/>
 		</div>
 		<div class="btns">
-			<PrimaryBtn
-				:label="'計算台數'"
-				@click="calculateTai"
-			/>
+			<PrimaryBtn :label="'計算台數'" @click="calculateTai" />
 		</div>
 	</div>
 </template>
@@ -83,13 +82,13 @@ const mahjongTiles = ref([
 	{ suit: 'dragon', value: '發' },
 	{ suit: 'dragon', value: '白' },
 ]);
-const testHand = reactive([]);
+const playerHand = reactive([]);
 const selectTile = (suit, value) => {
-	testHand.push(new Card(suit, value));
+	playerHand.push(new Card(suit, value));
 };
 const removeTile = (index) => {
-	if (index >= 0 && index < testHand.length) {
-		testHand.splice(index, 1);
+	if (index >= 0 && index < playerHand.length) {
+		playerHand.splice(index, 1);
 	}
 };
 const sortHand = (hand) => {
@@ -187,29 +186,36 @@ const canHu = (hand) => {
 };
 
 const calculateTai = () => {
-	if (!canHu(testHand)) {
+	if (!canHu(playerHand)) {
 		alert('無法胡牌');
 		return;
 	}
 	// 對手牌進行排序，便於處理
-	const sortedHand = sortHand([...testHand]);
+	const sortedHand = sortHand([...playerHand]);
 	let totalTai = 0;
-	let resultStr = '';
+	let result = [];
 
-	if (isPonPonHu(sortedHand)) {
-		totalTai += 4;
-		resultStr += '碰碰胡 +4台';
-	}
-	if (isPingHu(sortedHand)) {
-		totalTai += 2;
-		resultStr += '平胡 +2台';
-	}
 	const windDragonResult = calculateWindDragonTai(sortedHand);
 	totalTai += windDragonResult.tai;
-	resultStr += windDragonResult.resultStr;
+	result.push(windDragonResult.resultStr);
 
-	alert(resultStr);
-	console.log(totalTai, resultStr);
+	const uniformSuitTypeResult = calculateUniformSuitType(sortedHand);
+	if (uniformSuitTypeResult.tai > 0) {
+		totalTai += uniformSuitTypeResult.tai;
+		result.push(uniformSuitTypeResult.resultStr);
+	} else {
+		if (isPonPonHu(sortedHand)) {
+			totalTai += 4;
+			result.push('碰碰胡 +4台');
+		}
+		if (isPingHu(sortedHand)) {
+			totalTai += 2;
+			result.push('平胡 +2台');
+		}
+	}
+
+	alert(result);
+	console.log(totalTai, result);
 };
 //碰碰胡
 const isPonPonHu = (hand) => {
@@ -253,7 +259,7 @@ const isPingHu = (hand) => {
 	return false;
 };
 //判斷一副牌是否都由順子組成
-function canFormSequencesOnly(hand) {
+const canFormSequencesOnly = (hand) => {
 	// 手牌為空，表示可以完全由順子組成
 	if (hand.length === 0) return true;
 
@@ -276,7 +282,7 @@ function canFormSequencesOnly(hand) {
 	}
 
 	return false; // 所有可能都已嘗試過且無法找到有效的組合，則返回 false
-}
+};
 
 const calculateWindDragonTai = (hand) => {
 	const specialCards = hand.filter(
@@ -289,7 +295,7 @@ const calculateWindDragonTai = (hand) => {
 	});
 	return calculateTaiFromWindDragon(setsCount);
 };
-function calculateTaiFromWindDragon(setsCount) {
+const calculateTaiFromWindDragon = (setsCount) => {
 	let tai = 0;
 	let resultStr = '';
 
@@ -332,7 +338,42 @@ function calculateTaiFromWindDragon(setsCount) {
 	}
 
 	return { tai, resultStr };
-}
+};
+//判斷清一色、字一色、混一色
+const calculateUniformSuitType = (hand) => {
+	let tai = 0;
+	let resultStr = '';
+	const allZiPai = hand.every(
+		(card) => card.suit === 'wind' || card.suit === 'dragon'
+	);
+
+	const firstCardSuit = hand[0].suit;
+	const allSameSuit = hand.every((card) => card.suit === firstCardSuit);
+
+	const hasZiPai = hand.some(
+		(card) => card.suit === 'wind' || card.suit === 'dragon'
+	);
+	const nonZiPai = hand.filter(
+		(card) => card.suit !== 'wind' && card.suit !== 'dragon'
+	);
+	const nonZiPaiFirstSuit = nonZiPai.length > 0 ? nonZiPai[0].suit : '';
+	const allNonZiPaiSameSuit = nonZiPai.every(
+		(card) => card.suit === nonZiPaiFirstSuit
+	);
+
+	if (allZiPai) {
+		tai += 8;
+		resultStr += '字一色 +8台';
+	} else if (allSameSuit) {
+		tai += 6;
+		resultStr += '清一色 +6台';
+	} else if (hasZiPai && allNonZiPaiSameSuit) {
+		tai += 4;
+		resultStr += '混一色 +4台';
+	}
+
+	return { tai, resultStr };
+};
 </script>
 <style scoped lang="scss">
 .check {
